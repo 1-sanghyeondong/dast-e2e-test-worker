@@ -62,7 +62,7 @@ kotlin {
  * 스펙 다운로드 태스크 등록
  *
  * 출력 파일이 이미 존재하면 다운로드를 건너뜁니다 (UP-TO-DATE)
- * 스펙이 변경됐을 때 강제로 재생성하려면:  ./gradlew downloadCubeGpSpec --rerun
+ * 스펙이 변경됐을 때 강제로 재생성하려면:  ./gradlew downloadNewApiSpec --rerun
  */
 fun registerDownloadSpecTask(targetName: String, specUrl: String): TaskProvider<Exec> {
     val taskName = "download${
