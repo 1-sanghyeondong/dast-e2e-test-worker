@@ -205,3 +205,70 @@ build/generated/openapi/
     ├── model/     ← DTO 클래스
     └── invoker/   ← ApiClient, auth 설정
 ```
+
+### 샘플 서비스에 적용된 테스트 케이스
+
+| 테스트 ID | 유형 | 대상 엔드포인트 및 로직 | 공격 페이로드 / 테스트 벡터 및 실행 조건 | 의도한 결과 (PASS 기준) | 주기 |
+| --- | --- | --- | --- | --- | --- |
+| DAST | SQLi (전체) | category, name, emailAddress | ' OR '1'='1 주입 | 4xx 또는 정상 이스케이프 | 매주 월요일 |
+| DAST | SQLi (Time-Based) | 검색 및 입력 필드 | ; SELECT pg_sleep(5)-- 주입 | 응답 1,000ms 이내 | 매주 월요일 |
+| DAST | SQLi (Union) | 검색 및 입력 필드 | UNION SELECT null,null,null-- 주입 | 400 또는 4xx 에러 | 매주 월요일 |
+| DAST | XSS | 입력 필드 | `<script>alert(1)</script>` 주입 | 4xx 또는 이스케이프 저장 | 매주 월요일 |
+| DAST | XSS (Scheme) | 이미지 관련 필드 | `javascript:alert(1)` 주입 | URL Scheme 검증 실패(4xx) | 매주 월요일 |
+| DAST | XSS (SVG) | 입력 필드 | `<svg onload=alert(1)>` 주입 | 필터링 또는 4xx | 매주 월요일 |
+| DAST | XSS (Img) | 카테고리 및 입력 필드 | `<img src=x onerror=alert(1)>` 주입 | 400 또는 4xx | 매주 월요일 |
+| DAST | SSRF | 이미지 썸네일 URL 파라미터 | AWS 메타데이터 (169.254.169.254) | 4xx 또는 접속 불가 | 매주 월요일 |
+| DAST | SSRF | 이미지 썸네일 URL 파라미터 | 사내망/localhost | 400 또는 4xx | 매주 월요일 |
+| DAST | ReDoS | 검색 관련 입력 필드 | `aaa...(b+)+c` 패턴 주입 | 1,000ms 이내 처리 | 매주 월요일 |
+| 보안 설정 | 페이징 처리 | 페이징 파라미터 | size=100000 (Full Scan 유도) | 최대 페이징 제한(예: 100) 적용 | 매주 월요일 |
+| DAST | HPP | 전체 파라미터 | appId=909428&appId=INJECTED | 첫 값 채택 또는 4xx | 매주 월요일 |
+| DAST | HPP | 상태값 파라미터 | status=ACTIVE&status=DRAFT | 안전한 예외 처리 | 매주 월요일 |
+| DAST | HTTP 결함 | 클라이언트/어드민 API | TRACE, TRACK 메서드 요청 | 405, 403, 501 에러 | 매주 월요일 |
+| DAST | 정보 노출 | 에러 처리 로직 | JSON 바디 누락(구문 오류) | 상세 StackTrace 미노출 | 매주 월요일 |
+| DAST | XXE | XML 파싱 구간 | DOCTYPE 외부 엔티티 참조 | 엔티티 로드 실패(400/4xx) | 매주 월요일 |
+| DAST | CSRF | 클라이언트/어드민 변경 API | Origin 헤더 누락/외부 도메인 | 403 또는 4xx/5xx 거부 | 매주 월요일 |
+| DAST | CORS | 결제 및 서비스 API | `Origin: https://evil.attacker.com` | 헤더 미반영 및 거부 | 매주 월요일 |
+| DAST | Host Header | 전체 API 요청 | `Host: evil.attacker.com` 조작 | Host 헤더 검증 실패(4xx) | 매주 월요일 |
+| DAST | IDOR | 어드민 상품 조회 | 순차적 ID 추측 공격 | 권한 제한 및 비노출 | 매주 월요일 |
+| DAST | IDOR | 상점 간 상품 매핑 관리 | 타 상점 상품 매핑 시도 | 권한 없음 거부 | 매주 월요일 |
+| DAST | BOLA | 결제 내역 조회 API | 타인의 playerId/transactionId | 소유권 불일치 거부 | 매주 월요일 |
+| DAST | 결제 조작 | readyPurchase | price=0 | 단가 검증 실패(4xx) | 매주 월요일 |
+| DAST | 결제 조작 | readyPurchase | price=-100 / -10000 | 단가 검증 실패(4xx) | 매주 월요일 |
+| 로직 결함 | 가격 필드 검증 | - | price=2147483648 (Int Overflow) | 400 Bad Request | 매주 월요일 |
+| DAST | 결제 조작 | readyPurchase | itemCount=-1 | 수량 검증 실패 | 매주 월요일 |
+| DAST | 결제 조작 | readyPurchase | itemCount=1.5 | 타입 검증 실패 | 매주 월요일 |
+| DAST | Mass Assignment | 사용자 정보 수정 API | wallet_balance/role 주입 | 파라미터 무시/조작 방어 | 매주 월요일 |
+| DAST | Mass Assignment | 상품/콘텐츠 수정 API | is_deleted: true 주입 | 권한 탈취 방어 | 매주 월요일 |
+| DAST | Mass Assignment | 결제 승인/심사 API | status: APPROVED 주입 | 자동 승인 우회 실패 | 매주 월요일 |
+| DAST | Mass Assignment | 멀티테넌트 API | tenant_id 조작 시도 | 타겟 변경 불가 | 매주 월요일 |
+| DAST | IDOR | 어드민 매출 보고서 | 권한 없는 타 상점 ID 요청 | 권한 제한 | 매주 월요일 |
+| DAST | 인증 우회 | 어드민/서비스 전체 API | JWT alg=none | 401, 403, 404, 500 | 매주 월요일 |
+| DAST | 인증 우회 | 어드민/서비스 전체 API | 만료된 JWT 토큰 | 401, 403, 404, 500 | 매주 월요일 |
+| DAST | 인증 우회 | 어드민/서비스 전체 API | 변조된 시그니처 토큰 | 401, 403, 404, 500 | 매주 월요일 |
+| 로직 결함 | 파일 업로드 | 이미지 업로드 API | 악성 확장자(.php, .exe 등) | 415 또는 4xx | 매주 월요일 |
+| DAST | 파일 업로드 | 이미지 업로드 API | MIME 스니핑 공격 | Magic Number 검증 실패 | 매주 월요일 |
+| DAST | 결제 조작 | callback | 가격 변조 (amount=5000) | 단가 불일치 에러 | 매주 월요일 |
+| DAST | 무결성 검증 | callback | 서명(Signature) 위변조 | 위변조 감지 및 거부 | 매주 월요일 |
+| 보안 설정 | 응답 헤더 | 모든 API 응답 | X-Content-Type-Options: nosniff | 헤더 존재 확인 | 매주 월요일 |
+| 보안 설정 | 응답 헤더 | 모든 API 응답 | X-Powered-By/Server 정보 | 기술 스택 미노출 | 매주 월요일 |
+| DAST | PII 유출 예방 | API 응답 바디 | 이메일/주민번호/카드번호 정규식 | 패턴 미검출 확인 | 매주 월요일 |
+| 통신 보안 | 쿠키 | 세션 및 인증 API | HttpOnly; Secure 플래그 확인 | 플래그 존재 확인 | 매주 월요일 |
+| DAST | Rate Limit | 모든 등록 API | 1초 내 10~100회 요청 | 429 Too Many Requests | 매주 월요일 |
+| DAST | 정보 노출 | /actuator/env | 외부 접근 호출 | 4xx/500 거부 | 매주 월요일 |
+| DAST | 정보 노출 | /actuator/configprops | 외부 접근 호출 | 4xx/500 거부 | 매주 월요일 |
+| DAST | 정보 노출 | /.env | 파일 접근 호출 | 4xx/500 거부 | 매주 월요일 |
+| DAST | 정보 노출 | /application.yml | 파일 접근 호출 | 4xx/500 거부 | 매주 월요일 |
+| DAST | 정보 노출 | /.git/config | 파일 접근 호출 | 4xx/500 거부 | 매주 월요일 |
+| DAST | 경로 순회 | category 파라미터 | `../../../etc/passwd` | 파일 접근 차단(4xx) | 매주 월요일 |
+| 로직 결함 | 상태 검증 | readyPurchase/callback | INIT 상태에서 callback 호출 | 프로세스 위반(4xx/5xx) | 매주 월요일 |
+| 로직 결함 | 영수증 상태 검증 | callback | CANCELED/REFUNDED 영수증 | 상태 검증 실패 | 매주 월요일 |
+| 로직 결함 | 권한/소유권 검증 | startPayment2 | 타 상점 appId 가로채기 | 권한 검증 실패 | 매주 월요일 |
+| E2E 멱등성 | 결제 웹훅 | PAID 상태 거래 재요청 | 동일 성공 웹훅 5회 연속 | 1건만 유지, 나머지는 무시 | 매주 월요일 |
+| E2E 멱등성 | 중복 지급 방지 | callback | 동일 Idempotency-Key 2회 재요청 | 200 OK, 중복 지급 없음 | 매주 월요일 |
+| 로직 결함 | 구매 제한 정책 | readyPurchase | 계정당 1회 한정 상품 재결제 | 한도 초과 예외(492/403) | 매주 월요일 |
+| 로직 결함 | 타임아웃 만료 | callback | 제한 시간(30분) 초과 요청 | 타임아웃 만료 에러 | 매주 월요일 |
+| 동시성 | Race Condition | 1회 한정 상품 동시 결제 | 2개 기기 동시 startPayment2 | 분산 락 작동(1성공, 1거부) | 매주 월요일 |
+| E2E 정합성 | 환불 및 회수 | refund/ready | 환불 프로세스 진행 | 상태 변경 및 아이템 회수 | 매주 월요일 |
+| 로직 결함 | 환불 조건 검증 | 환불 API | CONSUMED 상태 아이템 환불 시도 | 환불 조건 미달(4xx) | 매주 월요일 |
+| DAST | BOLA | 환불 API | 타 사용자의 transactionId | 권한 및 소유권 불일치 | 매주 월요일 |
+| 동시성 | Race Condition | 어드민 상품 수정 | 10개 쓰레드 가격 동시 수정 | Optimistic Lock으로 409 | 매주 월요일 |
