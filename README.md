@@ -16,7 +16,6 @@
 - [프로젝트 구조](#프로젝트-구조)
 - [빠른 시작](#빠른-시작)
 - [OpenAPI 클라이언트 생성](#openapi-클라이언트-생성)
-- [설정 레퍼런스](#설정-레퍼런스-applicationyml)
 
 ---
 
@@ -204,3 +203,4 @@ build/generated/openapi/
     ├── model/     ← DTO 클래스
     └── invoker/   ← ApiClient, auth 설정
 ```
+
