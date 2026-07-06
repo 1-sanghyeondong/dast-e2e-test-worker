@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAST · E2E Worker Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            color: #37352F;
+            background-color: #FFFFFF;
+        }
+    </style>
+</head>
+<body class="p-8 font-sans transition-all duration-200 ease-in-out">
+
+<!-- Header -->
+<header class="flex items-center justify-between border-b border-[#EAEAEA] pb-5 mb-6">
+    <div class="flex items-center gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-[#37352F] tracking-tight">DAST · E2E Worker Dashboard</h1>
+            <p class="text-sm md:text-base md:text-sm font-normal text-[#787774] mt-1">*DAST: 동적 애플리케이션 보안 테스트 (웹/서버
+                취약점)</p>
+            <p class="text-sm md:text-base md:text-sm font-normal text-[#787774] mt-1">*E2E: End-to-End 테스트</p>
+        </div>
+    </div>
+</header>
+
+<!-- Metrics Grid -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <!-- Status Card -->
+    <div class="bg-white border border-[#EAEAEA] rounded-lg shadow-sm p-5 flex flex-col justify-between">
+        <span class="block text-sm md:text-base font-semibold text-[#787774] mb-1.5">현재 모니터링 상태</span>
+        <div class="flex items-center gap-2 mt-1">
+        <span id="current-status-badge"
+              class="inline-flex items-center px-2 py-0.5 rounded border text-sm md:text-base font-medium">
+          로딩 중...
+        </span>
+        </div>
+    </div>
+
+    <!-- Total Cycles -->
+    <div class="bg-white border border-[#EAEAEA] rounded-lg shadow-sm p-5 flex flex-col justify-between">
+        <span class="block text-sm md:text-base font-semibold text-[#787774] mb-1.5">수집된 전체 사이클 수</span>
+        <span id="total-cycles-count" class="text-2xl font-bold text-[#37352F] tracking-tight font-mono">0</span>
+    </div>
+
+    <!-- Success Rate -->
+    <div class="bg-white border border-[#EAEAEA] rounded-lg shadow-sm p-5 flex flex-col justify-between">
+        <span class="block text-sm md:text-base font-semibold text-[#787774] mb-1.5">최근 성공률 (최근 50회 기준)</span>
+        <span id="success-rate-pct" class="text-2xl font-bold text-[#0F7B6C] tracking-tight font-mono">0.0%</span>
+    </div>
+
+    <!-- Last Success Time -->
+    <div class="bg-white border border-[#EAEAEA] rounded-lg shadow-sm p-5 flex flex-col justify-between">
+        <span class="block text-sm md:text-base font-semibold text-[#787774] mb-1.5">최종 정상 작동 시각</span>
+        <span id="last-success-time" class="text-sm font-semibold text-[#37352F] tracking-tight font-mono">-</span>
+    </div>
+</section>
+
+<!-- Notion Style Tab Navigation -->
+<nav class="flex items-center gap-2 border-b border-[#EAEAEA] mb-6">
+    <button id="tab-scenarios-btn" onclick="switchTab('scenarios')"
+            class="px-3 py-2 text-sm font-medium text-[#37352F] border-b-2 border-[#37352F] -mb-[2px] transition-all flex items-center gap-1.5">
+        <i data-lucide="list-todo" class="w-4 h-4"></i> 전체 시나리오 현황
+    </button>
+    <button id="tab-cycles-btn" onclick="switchTab('cycles')"
+            class="px-3 py-2 text-sm font-medium text-[#787774] hover:text-[#37352F] border-b-2 border-transparent hover:border-[#EAEAEA] -mb-[2px] transition-all flex items-center gap-1.5">
+        <i data-lucide="history" class="w-4 h-4"></i> 실행 사이클 이력
+    </button>
+</nav>
+
+<!-- TAB 1: Scenarios View (Default) -->
+<div id="tab-content-scenarios" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Left: Predefined Scenarios Catalog -->
+    <section class="lg:col-span-7 bg-white border border-[#EAEAEA] rounded-lg shadow-sm p-5 flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-[#37352F]">시나리오 목록</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+                <thead>
+                <tr>
+                    <th class="border-y border-[#EAEAEA] px-3 py-2 text-left text-sm md:text-base font-semibold text-[#787774] whitespace-nowrap w-[52%]">
+                        시나리오명
+                    </th>
+                    <th class="border-y border-[#EAEAEA] px-3 py-2 text-left text-sm md:text-base font-semibold text-[#787774] whitespace-nowrap">
+                        주기
+                    </th>
+                    <th class="border-y border-[#EAEAEA] px-3 py-2 text-left text-sm md:text-base font-semibold text-[#787774] whitespace-nowrap">
+                        최종 상태
+                    </th>
+                    <th class="border-y border-[#EAEAEA] px-3 py-2 text-left text-sm md:text-base font-semibold text-[#787774] whitespace-nowrap">
+                        수동 실행
+                    </th>
+                </tr>
+                </thead>
+                <tbody id="scenarios-table-body">
+                <tr>
+                    <td colspan="4" class="border-b border-[#EAEAEA] px-3 py-8 text-center text-[#787774]">
+                        데이터를 로딩하고 있습니다...
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Right: Selected Scenario Detail View -->
+    <section class="lg:col-span-5 lg:sticky lg:top-8 self-start bg-white border border-[#EAEAEA] rounded-lg shadow-sm p-5 flex flex-col">
+        <div class="flex items-center justify-between border-b border-[#EAEAEA] pb-4 mb-4">
+            <div>
+                <h2 class="text-lg font-semibold text-[#37352F]" id="scenario-detail-title">시나리오 상세 상태</h2>
+                <p class="text-sm md:text-base font-normal text-[#787774] mt-1" id="scenario-detail-period">-</p>
+            </div>
+            <div id="scenario-detail-badge-container"></div>
+        </div>
+
+        <div id="scenario-detail-content" class="space-y-4">
+            <div class="text-center text-[#787774] py-12">
+                시나리오 행을 선택하면 최종 실행 정보와 상세 상태를 확인할 수 있습니다.
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- TAB 2: Execution Cycles View -->
+<div id="tab-content-cycles" class="grid grid-cols-1 lg:grid-cols-12 gap-6 hidden">
+    <!-- Left: Cycles Table -->
+    <section class="lg:col-span-5 lg:sticky lg:top-8 self-start bg-white border border-[#EAEAEA] rounded-lg shadow-sm p-5 flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-[#37352F]">실행 사이클 히스토리</h2>
+            <span class="text-sm md:text-base font-normal text-[#787774]">최신순 정렬</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+                <thead>
+                <tr>
+                    <th class="bg-[#F7F7F5] border-y border-[#EAEAEA] px-3 py-2 text-left text-sm md:text-base font-semibold text-[#787774] whitespace-nowrap">
+                        Trace ID
+                    </th>
+                    <th class="bg-[#F7F7F5] border-y border-[#EAEAEA] px-3 py-2 text-left text-sm md:text-base font-semibold text-[#787774] whitespace-nowrap">
+                        시작 시각
+                    </th>
+                    <th class="bg-[#F7F7F5] border-y border-[#EAEAEA] px-3 py-2 text-left text-sm md:text-base font-semibold text-[#787774] whitespace-nowrap">
+                        소요 시간
+                    </th>
+                    <th class="bg-[#F7F7F5] border-y border-[#EAEAEA] px-3 py-2 text-left text-sm md:text-base font-semibold text-[#787774] whitespace-nowrap">
+                        결과
+                    </th>
+                </tr>
+                </thead>
+                <tbody id="cycles-table-body">
+                <tr>
+                    <td colspan="4" class="border-b border-[#EAEAEA] px-3 py-8 text-center text-[#787774]">
+                        데이터를 로딩하고 있습니다...
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Right: Scenario list within selected Cycle -->
+    <section class="lg:col-span-7 bg-white border border-[#EAEAEA] rounded-lg shadow-sm p-5 flex flex-col">
+        <div class="flex items-center justify-between border-b border-[#EAEAEA] pb-4 mb-4">
+            <div>
+                <h2 class="text-lg font-semibold text-[#37352F]" id="details-title">시나리오 실행 상세</h2>
+                <p class="text-sm md:text-base font-normal text-[#787774] mt-1" id="details-subtitle">사이클을 선택하여 개별 결과를
+                    확인하세요.</p>
+            </div>
+            <div id="details-badge-container"></div>
+        </div>
+
+        <div id="scenarios-container" class="space-y-4">
+            <div class="text-center text-[#787774] py-12">
+                왼쪽 목록에서 사이클을 클릭하면 개별 시나리오 검증 결과가 표시됩니다.
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    let activeTab = 'scenarios'; // 'scenarios' or 'cycles'
+    let allScenarios = [];
+    let cycles = [];
+    let scenarioStats = [];
+
+    // 수동 실행 버튼 상태 추적: enumKey → { state: 'idle'|'running'|'pass'|'fail', message, durationMs }
+    const runState = {};
+
+    let selectedScenarioName = null;
+    let selectedCycleTraceId = null;
+
+    async function fetchData() {
+        const refreshIcon = document.getElementById('refresh-icon');
+        if (refreshIcon) refreshIcon.classList.add('animate-spin');
+
+        try {
+            const [scenariosRes, historyRes] = await Promise.all([
+                fetch('/e2e/api/scenarios'),
+                fetch('/e2e/api/history')
+            ]);
+
+            if (!scenariosRes.ok || !historyRes.ok) throw new Error('API 호출 실패');
+
+            allScenarios = await scenariosRes.json();
+
+            const rawHistory = await historyRes.json();
+            cycles = rawHistory.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+
+            // 시나리오 통계 계산
+            calculateScenarioStats();
+
+            // 초기 선택값 셋팅
+            if (allScenarios.length > 0 && !selectedScenarioName) {
+                selectedScenarioName = allScenarios[0].name;
+            }
+            if (cycles.length > 0 && !selectedCycleTraceId) {
+                selectedCycleTraceId = cycles[0].traceId;
+            }
+
+            renderDashboard();
+        } catch (err) {
+            console.error('데이터 갱신 중 에러 발생:', err);
+        } finally {
+            if (refreshIcon) {
+                setTimeout(() => refreshIcon.classList.remove('animate-spin'), 500);
+            }
+        }
+    }
+
+    function calculateScenarioStats() {
+        scenarioStats = allScenarios.map(meta => {
+            const stat = {
+                name: meta.name,
+                type: meta.type,
+                target: meta.target,
+                payload: meta.payload,
+                expected: meta.expected,
+                period: meta.period,
+                enumKey: meta.enumKey || '',
+                lastResult: 'PENDING', // PASS, FAIL, PENDING
+                lastRunTime: null,
+                lastSuccessTime: null,
+                lastErrorMessage: null,
+                lastStackTrace: null,
+                history: [] // 최근 5회 성공/실패 기록 [{ traceId, status, startedAt }]
+            };
+
+            // cycles를 돌며 이 시나리오에 해당하는 기록 매핑
+            cycles.forEach(cycle => {
+                if (!cycle.scenarios) return;
+                const found = cycle.scenarios.find(s => s.name === meta.name);
+                if (found) {
+                    // 최근 5회 기록 수집
+                    if (stat.history.length < 5) {
+                        stat.history.push({
+                            traceId: cycle.traceId,
+                            status: found.status,
+                            startedAt: found.startedAt
+                        });
+                    }
+
+                    // 최신 실행 기록
+                    if (!stat.lastRunTime) {
+                        stat.lastResult = found.status;
+                        stat.lastRunTime = found.startedAt;
+                        if (found.status === 'FAIL') {
+                            stat.lastErrorMessage = found.message;
+                            stat.lastStackTrace = found.stackTrace;
+                        }
+                    }
+
+                    // 최신 성공 기록
+                    if (found.status === 'PASS' && !stat.lastSuccessTime) {
+                        stat.lastSuccessTime = found.startedAt;
+                    }
+                }
+            });
+
+            return stat;
+        });
+    }
+
+    function switchTab(tab) {
+        activeTab = tab;
+
+        const scenariosBtn = document.getElementById('tab-scenarios-btn');
+        const cyclesBtn = document.getElementById('tab-cycles-btn');
+        const scenariosContent = document.getElementById('tab-content-scenarios');
+        const cyclesContent = document.getElementById('tab-content-cycles');
+
+        if (tab === 'scenarios') {
+            scenariosBtn.className = 'px-3 py-2 text-sm font-medium text-[#37352F] border-b-2 border-[#37352F] -mb-[2px] transition-all flex items-center gap-1.5';
+            cyclesBtn.className = 'px-3 py-2 text-sm font-medium text-[#787774] hover:text-[#37352F] border-b-2 border-transparent hover:border-[#EAEAEA] -mb-[2px] transition-all flex items-center gap-1.5';
+            scenariosContent.classList.remove('hidden');
+            cyclesContent.classList.add('hidden');
+        } else {
+            scenariosBtn.className = 'px-3 py-2 text-sm font-medium text-[#787774] hover:text-[#37352F] border-b-2 border-transparent hover:border-[#EAEAEA] -mb-[2px] transition-all flex items-center gap-1.5';
+            cyclesBtn.className = 'px-3 py-2 text-sm font-medium text-[#37352F] border-b-2 border-[#37352F] -mb-[2px] transition-all flex items-center gap-1.5';
+            scenariosContent.classList.add('hidden');
+            cyclesContent.classList.remove('hidden');
+        }
+
+        renderDashboard();
+    }
+
+    function renderDashboard() {
+        renderMetrics();
+        if (activeTab === 'scenarios') {
+            renderScenariosTable();
+            renderScenarioDetail();
+        } else {
+            renderCyclesTable();
+            renderScenarios();
+        }
+        lucide.createIcons();
+    }
+
+    function renderMetrics() {
+        if (cycles.length === 0) {
+            const badge = document.getElementById('current-status-badge');
+            badge.className = 'inline-flex items-center px-2 py-0.5 rounded border border-[#787774] bg-[#F7F7F5] text-sm md:text-base font-medium text-[#787774]';
+            badge.innerHTML = '<i data-lucide="help-circle" class="w-3.5 h-3.5 mr-1"></i> 데이터 수집 대기';
+            return;
+        }
+
+        const latestCycle = cycles[0];
+        const statusBadge = document.getElementById('current-status-badge');
+
+        if (latestCycle.status === 'RUNNING') {
+            statusBadge.className = 'inline-flex items-center px-2 py-0.5 rounded border border-[#0B6E99] bg-[#F3F8FB] text-sm md:text-base font-medium text-[#0B6E99]';
+            statusBadge.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 mr-1 animate-spin"></i> 실행 중';
+        } else if (latestCycle.status === 'PASS') {
+            statusBadge.className = 'inline-flex items-center px-2 py-0.5 rounded border border-[#0F7B6C] bg-[#F3FAF7] text-sm md:text-base font-medium text-[#0F7B6C]';
+            statusBadge.innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5 mr-1"></i> 정상 작동';
+        } else {
+            statusBadge.className = 'inline-flex items-center px-2 py-0.5 rounded border border-[#E03E3E] bg-[#FDF3F4] text-sm md:text-base font-medium text-[#E03E3E]';
+            statusBadge.innerHTML = '<i data-lucide="alert-triangle" class="w-3.5 h-3.5 mr-1"></i> 장애 감지';
+        }
+
+        document.getElementById('total-cycles-count').textContent = cycles.length;
+
+        const finishedCycles = cycles.filter(c => c.status !== 'RUNNING');
+        const passCycles = finishedCycles.filter(c => c.status === 'PASS');
+        const successRate = finishedCycles.length > 0
+            ? ((passCycles.length / finishedCycles.length) * 100).toFixed(1)
+            : '0.0';
+
+        const successRateEl = document.getElementById('success-rate-pct');
+        successRateEl.textContent = `${successRate}%`;
+        if (parseFloat(successRate) < 95) {
+            successRateEl.className = 'text-2xl font-bold text-[#E03E3E] tracking-tight font-mono';
+        } else if (parseFloat(successRate) < 100) {
+            successRateEl.className = 'text-2xl font-bold text-[#D9730D] tracking-tight font-mono';
+        } else {
+            successRateEl.className = 'text-2xl font-bold text-[#0F7B6C] tracking-tight font-mono';
+        }
+
+        const lastPassCycle = cycles.find(c => c.status === 'PASS');
+        document.getElementById('last-success-time').textContent = lastPassCycle
+            ? formatTime(lastPassCycle.endedAt || lastPassCycle.startedAt)
+            : '-';
+    }
+
+    // ──────────────────────────────────────────
+    // TAB 1: Scenarios View Rendering
+    // ──────────────────────────────────────────
+    function renderScenariosTable() {
+        const tbody = document.getElementById('scenarios-table-body');
+        if (scenarioStats.length === 0) {
+            tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="border-b border-[#EAEAEA] px-3 py-8 text-center text-[#787774]">
+              등록된 시나리오 정보가 없습니다.
+            </td>
+          </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = scenarioStats.map(s => {
+            const isSelected = s.name === selectedScenarioName;
+            const selectedClass = isSelected ? 'bg-[#EAEAEA]/60 font-medium' : '';
+
+            let statusBadge = '';
+            if (s.lastResult === 'PENDING') {
+                statusBadge = '<span class="inline-flex items-center text-sm md:text-base font-medium text-[#787774]">대기 중</span>';
+            } else if (s.lastResult === 'PASS') {
+                statusBadge = '<span class="inline-flex items-center text-sm md:text-base font-medium text-[#0F7B6C]">PASS</span>';
+            } else {
+                statusBadge = '<span class="inline-flex items-center text-sm md:text-base font-medium text-[#E03E3E]">FAIL</span>';
+            }
+
+            let periodBadgeColor = 'text-[#0F7B6C]';
+            if (s.period === '하루') periodBadgeColor = 'text-[#D9730D]';
+            if (s.period === '일주일') periodBadgeColor = 'text-[#0B6E99]';
+
+            const runBtnHtml = s.enumKey ? buildRunBtnHtml(s.enumKey) : '';
+
+            return `
+          <tr onclick="selectScenario('${escapeJsString(s.name)}')" class="hover:bg-[#F7F7F5]/50 transition-colors cursor-pointer border-b border-[#EAEAEA] ${selectedClass}">
+            <td class="px-3 py-3 text-[#37352F] font-medium max-w-[300px] truncate" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</td>
+            <td class="px-3 py-3 text-sm md:text-base">
+              <span class="inline-flex items-center text-sm md:text-base ${periodBadgeColor}">${s.period}</span>
+            </td>
+            <td class="px-3 py-3">${statusBadge}</td>
+            <td class="px-3 py-3">${runBtnHtml}</td>
+          </tr>
+        `;
+        }).join('');
+    }
+
+    function selectScenario(name) {
+        selectedScenarioName = name;
+        renderScenariosTable();
+        renderScenarioDetail();
+        lucide.createIcons();
+    }
+
+    function renderScenarioDetail() {
+        const container = document.getElementById('scenario-detail-content');
+        const title = document.getElementById('scenario-detail-title');
+        const period = document.getElementById('scenario-detail-period');
+        const badgeContainer = document.getElementById('scenario-detail-badge-container');
+
+        const stat = scenarioStats.find(s => s.name === selectedScenarioName);
+        if (!stat) {
+            badgeContainer.innerHTML = '';
+            container.innerHTML = `
+          <div class="text-center text-[#787774] py-12">
+            시나리오 정보가 선택되지 않았습니다.
+          </div>`;
+            return;
+        }
+
+        title.innerHTML = `${escapeHtml(stat.name)}`;
+        period.textContent = `실행 주기: ${stat.period}`;
+
+        let resultBadge = '';
+        if (stat.lastResult === 'PENDING') {
+            resultBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded border border-[#EAEAEA] bg-[#F7F7F5] text-sm md:text-base font-medium text-[#787774]"><i data-lucide="help-circle" class="w-3.5 h-3.5 mr-1"></i> PENDING</span>';
+        } else if (stat.lastResult === 'PASS') {
+            resultBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded border border-[#0F7B6C] bg-[#F3FAF7] text-sm md:text-base font-medium text-[#0F7B6C]"><i data-lucide="check" class="w-3.5 h-3.5 mr-1"></i> PASS</span>';
+        } else {
+            resultBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded border border-[#E03E3E] bg-[#FDF3F4] text-sm md:text-base font-medium text-[#E03E3E]"><i data-lucide="x" class="w-3.5 h-3.5 mr-1"></i> FAIL</span>';
+        }
+        badgeContainer.innerHTML = resultBadge;
+
+        // 최근 성공/실패 추세 (최대 5회)
+        let historyTrendHtml = '';
+        if (stat.history.length === 0) {
+            historyTrendHtml = '<span class="text-sm md:text-base text-[#787774] italic">실행 이력 없음</span>';
+        } else {
+            historyTrendHtml = `
+          <div class="flex items-center gap-1.5">
+            ${stat.history.map(h => {
+                const color = h.status === 'PASS' ? 'bg-[#0F7B6C]' : 'bg-[#E03E3E]';
+                return `<span class="w-3.5 h-3.5 rounded-full ${color} block" title="Trace ID: ${h.traceId} | ${h.status} (${formatDateTime(h.startedAt)})"></span>`;
+            }).join('')}
+            <span class="text-sm md:text-base text-[#787774] ml-2">(최근 5회 기록)</span>
+          </div>`;
+        }
+
+        let errorBlock = '';
+        if (stat.lastResult === 'FAIL') {
+            errorBlock = `
+          <div class="border border-[#E03E3E]/20 bg-[#FDF3F4] rounded-lg p-4">
+            <h4 class="text-sm md:text-base font-semibold text-[#E03E3E] flex items-center gap-1.5 mb-2">
+              <i data-lucide="alert-circle" class="w-4 h-4"></i>
+              최종 실행 에러 로그
+            </h4>
+            <div class="font-mono text-sm md:text-base text-[#E03E3E] overflow-auto max-h-[220px] whitespace-pre-wrap select-text leading-relaxed bg-white border border-[#EAEAEA] p-3 rounded">
+              <div class="font-bold mb-1">[Message] ${escapeHtml(stat.lastErrorMessage)}</div>
+              <div class="opacity-80">${escapeHtml(stat.lastStackTrace)}</div>
+            </div>
+          </div>
+        `;
+        }
+
+        container.innerHTML = `
+        <div class="bg-[#F7F7F5] border border-[#EAEAEA] rounded-md p-4 space-y-3.5">
+          <div class="grid grid-cols-3 gap-2 text-sm md:text-base">
+            <span class="text-[#787774] font-medium">테스트 ID / 유형</span>
+            <span class="col-span-2 text-[#37352F] font-semibold">${escapeHtml(stat.type || '-')}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-sm md:text-base">
+            <span class="text-[#787774] font-medium">대상 엔드포인트/로직</span>
+            <span class="col-span-2 text-[#37352F]">${escapeHtml(stat.target || '-')}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-sm md:text-base">
+            <span class="text-[#787774] font-medium">테스트 벡터 / 조건</span>
+            <span class="col-span-2 text-[#37352F] text-sm md:text-base">${escapeHtml(stat.payload || '-')}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-sm md:text-base">
+            <span class="text-[#787774] font-medium">의도한 결과 (PASS)</span>
+            <span class="col-span-2 text-[#37352F]">${escapeHtml(stat.expected || '-')}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-sm md:text-base">
+            <span class="text-[#787774] font-medium">실행 주기</span>
+            <span class="col-span-2 text-[#37352F]">${escapeHtml(stat.period || '-')}</span>
+          </div>
+          <div class="border-t border-[#EAEAEA] pt-2"></div>
+          <div class="grid grid-cols-3 gap-2 text-sm md:text-base">
+            <span class="text-[#787774] font-medium">최종 실행 시간</span>
+            <span class="col-span-2 font-mono text-[#37352F]">${stat.lastRunTime ? formatDateTime(stat.lastRunTime) : '-'}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-sm md:text-base">
+            <span class="text-[#787774] font-medium">최종 성공 시간</span>
+            <span class="col-span-2 font-mono text-[#37352F]">${stat.lastSuccessTime ? formatDateTime(stat.lastSuccessTime) : '-'}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-sm md:text-base items-center">
+            <span class="text-[#787774] font-medium">최근 성공 추이</span>
+            <div class="col-span-2">${historyTrendHtml}</div>
+          </div>
+        </div>
+        ${errorBlock}
+      `;
+    }
+
+
+    // ──────────────────────────────────────────
+    // 수동 실행 버튼
+    // ──────────────────────────────────────────
+    function buildRunBtnHtml(enumKey) {
+        const s = runState[enumKey];
+        const k = escapeHtml(enumKey);
+        const kJs = escapeJsString(enumKey);
+
+        if (!s || s.state === 'idle') {
+            return `<button id="run-btn-${k}" data-key="${k}"
+              onclick="event.stopPropagation(); runManualScenario('${kJs}')"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border border-[#EAEAEA] bg-white hover:bg-[#F7F7F5] text-[#37352F] transition-colors whitespace-nowrap">
+              <i data-lucide="play" class="w-3 h-3"></i> 실행
+            </button>`;
+        } else if (s.state === 'running') {
+            return `<button id="run-btn-${k}" disabled
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border border-[#0B6E99] bg-[#F3F8FB] text-[#0B6E99] whitespace-nowrap cursor-wait">
+              <i data-lucide="loader" class="w-3 h-3 animate-spin"></i> 실행 중
+            </button>`;
+        } else if (s.state === 'pass') {
+            return `<button id="run-btn-${k}" data-key="${k}"
+              onclick="event.stopPropagation(); resetRunState('${kJs}')"
+              title="${(s.durationMs / 1000).toFixed(2)}s"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border border-[#0F7B6C] bg-[#F3FAF7] text-[#0F7B6C] transition-colors whitespace-nowrap">
+              <i data-lucide="check" class="w-3 h-3"></i> PASS
+            </button>`;
+        } else {
+            return `<button id="run-btn-${k}" data-key="${k}"
+              onclick="event.stopPropagation(); resetRunState('${kJs}')"
+              title="${escapeHtml(s.message || '실행 실패')}"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border border-[#E03E3E] bg-[#FDF3F4] text-[#E03E3E] transition-colors whitespace-nowrap">
+              <i data-lucide="x" class="w-3 h-3"></i> FAIL
+            </button>`;
+        }
+    }
+
+    async function runManualScenario(enumKey) {
+        if (runState[enumKey]?.state === 'running') return;
+        runState[enumKey] = { state: 'running' };
+        renderScenariosTable();
+        lucide.createIcons();
+
+        try {
+            const resp = await fetch(`/e2e/api/scenarios/${encodeURIComponent(enumKey)}/run`, { method: 'POST' });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const result = await resp.json();
+
+            runState[enumKey] = {
+                state: result.status === 'PASS' ? 'pass' : 'fail',
+                message: result.message,
+                durationMs: result.durationMs,
+            };
+        } catch (e) {
+            runState[enumKey] = { state: 'fail', message: e.message, durationMs: 0 };
+        }
+
+        renderScenariosTable();
+        lucide.createIcons();
+    }
+
+    function resetRunState(enumKey) {
+        delete runState[enumKey];
+        renderScenariosTable();
+        lucide.createIcons();
+    }
+
+    // ──────────────────────────────────────────
+    // TAB 2: Cycles View Rendering (Original logic)
+    // ──────────────────────────────────────────
+    function renderCyclesTable() {
+        const tbody = document.getElementById('cycles-table-body');
+        if (cycles.length === 0) {
+            tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="border-b border-[#EAEAEA] px-3 py-8 text-center text-[#787774]">
+              기록된 실행 히스토리가 없습니다.
+            </td>
+          </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = cycles.map(c => {
+            const isSelected = c.traceId === selectedCycleTraceId;
+            const selectedClass = isSelected ? 'bg-[#EAEAEA]/60 font-medium' : '';
+            const durationText = c.durationMs ? `${(c.durationMs / 1000).toFixed(2)}s` : '-';
+
+            let statusBadge = '';
+            if (c.status === 'RUNNING') {
+                statusBadge = '<span class="inline-flex items-center px-1.5 py-0.5 rounded bg-[#F3F8FB] border border-[#0B6E99] text-sm md:text-base font-medium text-[#0B6E99]"><i data-lucide="loader" class="w-2.5 h-2.5 mr-0.5 animate-spin"></i> RUNNING</span>';
+            } else if (c.status === 'PASS') {
+                statusBadge = '<span class="inline-flex items-center px-1.5 py-0.5 rounded bg-[#F3FAF7] border border-[#0F7B6C] text-sm md:text-base font-medium text-[#0F7B6C]">PASS</span>';
+            } else {
+                statusBadge = '<span class="inline-flex items-center px-1.5 py-0.5 rounded bg-[#FDF3F4] border border-[#E03E3E] text-sm md:text-base font-medium text-[#E03E3E]">FAIL</span>';
+            }
+
+            return `
+          <tr onclick="selectCycle('${c.traceId}')" class="hover:bg-[#F7F7F5]/50 transition-colors cursor-pointer border-b border-[#EAEAEA] ${selectedClass}">
+            <td class="px-3 py-3 text-[#37352F] font-mono">${c.traceId}</td>
+            <td class="px-3 py-3 text-[#787774] text-sm md:text-base font-mono">${formatTime(c.startedAt)}</td>
+            <td class="px-3 py-3 text-[#787774] text-sm md:text-base font-mono">${durationText}</td>
+            <td class="px-3 py-3">${statusBadge}</td>
+          </tr>
+        `;
+        }).join('');
+    }
+
+    function selectCycle(traceId) {
+        selectedCycleTraceId = traceId;
+        renderCyclesTable();
+        renderScenarios();
+        lucide.createIcons();
+    }
+
+    function renderScenarios() {
+        const container = document.getElementById('scenarios-container');
+        const title = document.getElementById('details-title');
+        const subtitle = document.getElementById('details-subtitle');
+        const badgeContainer = document.getElementById('details-badge-container');
+
+        const cycle = cycles.find(c => c.traceId === selectedCycleTraceId);
+        if (!cycle) {
+            badgeContainer.innerHTML = '';
+            container.innerHTML = `
+          <div class="text-center text-[#787774] py-12">
+            사이클 정보가 존재하지 않습니다.
+          </div>`;
+            return;
+        }
+
+        title.innerHTML = `Cycle Details <span class="font-mono text-sm text-[#787774] font-normal ml-2">#${cycle.traceId}</span>`;
+        subtitle.textContent = `시작 시각: ${formatDateTime(cycle.startedAt)}` + (cycle.durationMs ? ` (총 소요 시간: ${(cycle.durationMs / 1000).toFixed(2)}s)` : '');
+
+        let cycleBadge = '';
+        if (cycle.status === 'RUNNING') {
+            cycleBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded border border-[#0B6E99] bg-[#F3F8FB] text-sm md:text-base font-medium text-[#0B6E99]"><i data-lucide="loader" class="w-3 h-3 mr-1 animate-spin"></i> RUNNING</span>';
+        } else if (cycle.status === 'PASS') {
+            cycleBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded border border-[#0F7B6C] bg-[#F3FAF7] text-sm md:text-base font-medium text-[#0F7B6C]"><i data-lucide="check" class="w-3 h-3 mr-1"></i> PASS</span>';
+        } else {
+            cycleBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded border border-[#E03E3E] bg-[#FDF3F4] text-sm md:text-base font-medium text-[#E03E3E]"><i data-lucide="x" class="w-3 h-3 mr-1"></i> FAIL</span>';
+        }
+        badgeContainer.innerHTML = cycleBadge;
+
+        if (!cycle.scenarios || cycle.scenarios.length === 0) {
+            container.innerHTML = `
+          <div class="text-center text-[#787774] py-12">
+            이 사이클에서 실행된 시나리오가 아직 없거나 비어 있습니다.
+          </div>`;
+            return;
+        }
+
+        container.innerHTML = cycle.scenarios.map((s, index) => {
+            const isFail = s.status === 'FAIL';
+            const statusBadge = isFail
+                ? '<span class="inline-flex items-center px-2 py-0.5 rounded border border-[#E03E3E] bg-[#FDF3F4] text-sm md:text-base font-medium text-[#E03E3E]">FAIL</span>'
+                : '<span class="inline-flex items-center px-2 py-0.5 rounded border border-[#0F7B6C] bg-[#F3FAF7] text-sm md:text-base font-medium text-[#0F7B6C]">PASS</span>';
+
+            let failDetailsHtml = '';
+            if (isFail) {
+                failDetailsHtml = `
+            <div class="mt-3 border border-[#EAEAEA] rounded-md overflow-hidden bg-[#F7F7F5]">
+              <button onclick="toggleErrorDetails(${index})" class="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-[#EAEAEA]/30 transition-colors text-sm md:text-base font-semibold text-[#37352F]">
+                <span class="flex items-center gap-1 text-[#E03E3E]">
+                  <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+                  에러 로그 및 Stack Trace 보기
+                </span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-[#787774] transform transition-transform duration-200" id="chevron-${index}"></i>
+              </button>
+              <div id="error-box-${index}" class="hidden p-3 border-t border-[#EAEAEA] font-mono text-sm md:text-base text-[#E03E3E] overflow-auto max-h-[300px] leading-relaxed whitespace-pre-wrap select-text">
+                <div class="font-bold mb-1">[Message] ${escapeHtml(s.message || '상세 에러 내용 없음')}</div>
+                <div class="opacity-80">${escapeHtml(s.stackTrace || 'Stack trace 가 수집되지 않았습니다.')}</div>
+              </div>
+            </div>
+          `;
+            }
+
+            return `
+          <div class="border border-[#EAEAEA] rounded-lg p-4 bg-white transition-all duration-200">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-[#37352F] leading-tight">${escapeHtml(s.name)}</h3>
+                <div class="flex items-center gap-3 text-sm md:text-base text-[#787774] mt-2 font-mono">
+                  <span>시작: ${formatTimeOnly(s.startedAt)}</span>
+                  <span>•</span>
+                  <span>소요: ${(s.durationMs / 1000).toFixed(2)}s</span>
+                </div>
+              </div>
+              <div>${statusBadge}</div>
+            </div>
+            ${failDetailsHtml}
+          </div>
+        `;
+        }).join('');
+    }
+
+    function toggleErrorDetails(index) {
+        const box = document.getElementById(`error-box-${index}`);
+        const chevron = document.getElementById(`chevron-${index}`);
+
+        if (box.classList.contains('hidden')) {
+            box.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            box.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+
+
+    // ──────────────────────────────────────────
+    // Formatting Helpers
+    // ──────────────────────────────────────────
+    function formatTime(isoString) {
+        if (!isoString) return '-';
+        const d = new Date(isoString);
+        return d.toLocaleTimeString('ko-KR', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'});
+    }
+
+    function formatTimeOnly(isoString) {
+        if (!isoString) return '-';
+        const d = new Date(isoString);
+        return d.toLocaleTimeString('ko-KR', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            millisecond: 'numeric'
+        });
+    }
+
+    function formatDateTime(isoString) {
+        if (!isoString) return '-';
+        const d = new Date(isoString);
+        return d.toLocaleString('ko-KR', {hour12: false});
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function escapeJsString(str) {
+        if (!str) return '';
+        return str
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '\\"');
+    }
+
+    // 초기 로딩 및 주기 갱신
+    document.addEventListener("DOMContentLoaded", () => {
+        fetchData();
+    });
+</script>
+</body>
+</html>

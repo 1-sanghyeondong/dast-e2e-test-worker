@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+
+    <property name="LOG_PATH" value="/home/dast-e2e-worker/shared/logs/"/>
+    <property name="LOG_FILE" value="dast-e2e-worker"/>
+
+    <springProfile name="local">
+        <include resource="logging/logback-local.xml"/>
+    </springProfile>
+</configuration>

@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: dast-e2e-test-worker
+  task:
+    scheduling:
+      pool:
+        size: 4
+
+server:
+  port: 8080
+  shutdown: graceful
+
+e2e:
+  # 테스트 데이터 격리용 전용 PlayerId
+  player-id: ""
+
+  # HTTP 클라이언트 타임아웃 (ms)
+  http:
+    connect-timeout-ms: 3000
+    read-timeout-ms: 30000
+    write-timeout-ms: 30000
+    max-connections: 100
+    pending-acquire-timeout-ms: 5000
+    max-idle-time-ms: 10000
+
+  # 타겟 서버 목록 (N개 확장 가능)
+  targets:
+    - name: new-api
+      base-url: "https://new-api.platform.com"
+      enabled: true
+
+  alert:
+    webhook-url: ""
+    jira-project-key: ""
+    jira-base-url: ""
+    jira-pat: ""
