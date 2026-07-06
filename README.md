@@ -53,6 +53,8 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+<img width="2301" height="1446" alt="image-2026-7-1_15-31-43" src="https://github.com/user-attachments/assets/b68fa1da-fb3e-4c07-a261-8a9a2e335d38" />
+
 ---
 
 ## 기술 스택
@@ -203,7 +205,3 @@ build/generated/openapi/
     ├── model/     ← DTO 클래스
     └── invoker/   ← ApiClient, auth 설정
 ```
-
-<img width="2301" height="1446" alt="image-2026-7-1_15-31-43" src="https://github.com/user-attachments/assets/b68fa1da-fb3e-4c07-a261-8a9a2e335d38" />
-
-
