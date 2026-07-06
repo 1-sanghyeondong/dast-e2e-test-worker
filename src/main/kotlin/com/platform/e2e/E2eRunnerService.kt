@@ -16,11 +16,11 @@ class E2eRunnerService(
     suspend fun executeCoreFlowHourly() = runCycle {
     }
 
-    /** 매일 실행 시나리오 — 상품 등록·배포·통합상품 연동 플로우 */
+    /** 매일 실행 시나리오 */
     suspend fun executeCoreFlowDaily() = runCycle {
     }
 
-    /** 매주 실행 시나리오 — DAST 취약점 점검 */
+    /** 매주 실행 시나리오 */
     suspend fun executeCoreFlowWeekly() = runCycle {
         val results = newApiDastScenario.runAll()
         results.forEach { result ->
