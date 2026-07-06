@@ -120,7 +120,7 @@ dast-e2e-worker/
 
 ```angular2html
 val apiTargets = listOf(
-  ApiTarget("new-api",  "https://new-api.kakaogames.com/v3/api-docs",  "newApi"),
+  ApiTarget("new-api",  "https://new-api.platform.com/v3/api-docs",  "newApi"),
   // ApiTarget("프로젝트 내부 서비스 폴더 경로 (kebab-case)", "서비스 경로", "서비스 이름"),
 )
 ```
